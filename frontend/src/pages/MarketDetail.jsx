@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Contract, parseEther, formatEther } from "ethers";
 import { motion } from "framer-motion";
@@ -120,7 +120,7 @@ export default function MarketDetail() {
     if (!account) return;
     setChallenging(true); setChallengeMsg(null);
     try {
-      const res = await fetch("/markets/challenge", {
+      const res = await fetch(`${API}/markets/challenge`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ marketId: Number(id), wallet: account }),
