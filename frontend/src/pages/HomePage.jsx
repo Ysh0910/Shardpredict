@@ -144,6 +144,33 @@ function MarketCard({ market, index }) {
   const cat    = market.category || 'Custom';
   const grad   = CATEGORY_GRADIENTS[cat] || CATEGORY_GRADIENTS.Custom;
 
+  const getVerificationBadge = () => {
+    if (!market.resolved) return null;
+    
+    switch (market.verificationStatus) {
+      case 'verified':
+        return (
+          <span className="bg-yes/10 border border-yes/30 text-yes rounded-full px-2 py-0.5 text-xs font-mono flex items-center gap-1">
+            ✓ Verified
+          </span>
+        );
+      case 'disputed':
+        return (
+          <span className="bg-no/10 border border-no/30 text-no rounded-full px-2 py-0.5 text-xs font-mono flex items-center gap-1">
+            ⚠ Disputed
+          </span>
+        );
+      case 'verifying':
+        return (
+          <span className="bg-gold/10 border border-gold/30 text-gold rounded-full px-2 py-0.5 text-xs font-mono flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-gold animate-pulse" />Verifying
+          </span>
+        );
+      default:
+        return null;
+    }
+  };
+
   return (
     <motion.div
       initial={{ opacity:0, y:30 }}
@@ -160,7 +187,7 @@ function MarketCard({ market, index }) {
           : <div className={`w-full h-full bg-gradient-to-br ${grad}`} />
         }
         <div className="absolute inset-0 bg-gradient-to-t from-surface via-surface/60 to-transparent" />
-        <div className="absolute top-3 right-3 flex gap-2">
+        <div className="absolute top-3 right-3 flex gap-2 flex-wrap justify-end">
           <span className="bg-elevated/80 text-primary border border-primary/30 rounded-full px-2 py-0.5 text-xs font-mono backdrop-blur-sm">
             {cat}
           </span>
@@ -172,6 +199,7 @@ function MarketCard({ market, index }) {
                 <span className="w-1.5 h-1.5 rounded-full bg-yes animate-pulse" />OPEN
               </span>
           }
+          {getVerificationBadge()}
         </div>
       </div>
 
