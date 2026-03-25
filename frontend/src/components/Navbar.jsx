@@ -1,39 +1,81 @@
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { useApp } from '../App';
 
 export default function Navbar() {
   const { account, connect, walletError, score, isOwner } = useApp();
+  const { pathname } = useLocation();
   const short = account ? `${account.slice(0, 6)}…${account.slice(-4)}` : null;
 
   return (
-    <nav style={s.bar}>
-      <div style={s.left}>
-        <Link to="/" style={s.logo}>⚡ ShardPredict</Link>
-        <Link to="/" style={s.link}>Markets</Link>
-        {isOwner && <Link to="/create" style={s.link}>Create</Link>}
-      </div>
-      <div style={s.right}>
-        {walletError && <span style={s.err}>{walletError}</span>}
-        {account && score !== null && (
-          <span style={s.score}>⭐ {score} pts</span>
-        )}
-        {account
-          ? <span style={s.addr}>{short}</span>
-          : <button style={s.btn} onClick={connect}>Connect Wallet</button>
-        }
+    <nav className="sticky top-0 z-50 bg-base/80 backdrop-blur-2xl border-b border-primary/15"
+         style={{ boxShadow: '0 1px 0 rgba(91,110,245,0.2)' }}>
+      <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+
+        {/* Left */}
+        <div className="flex items-center gap-6">
+          <motion.div whileHover={{ scale: 1.03 }}>
+            <Link to="/" className="font-display text-lg font-bold flex items-center gap-1">
+              <span className="text-gold">⚡</span>
+              <span className="text-primary">Shard</span>
+              <span className="text-white">Predict</span>
+            </Link>
+          </motion.div>
+
+          <motion.div whileHover={{ y: -1 }}>
+            <Link to="/"
+              className={`text-sm px-3 py-1.5 rounded-lg transition-all duration-150 ${
+                pathname === '/' ? 'bg-primary/15 text-white' : 'text-secondary hover:bg-primary/10 hover:text-white'
+              }`}>
+              Markets
+            </Link>
+          </motion.div>
+
+          {isOwner && (
+            <motion.div whileHover={{ y: -1 }}>
+              <Link to="/create"
+                className={`text-sm px-3 py-1.5 rounded-lg border transition-all duration-150 ${
+                  pathname === '/create'
+                    ? 'border-primary bg-primary/15 text-white'
+                    : 'border-primary/40 text-primary hover:bg-primary/10'
+                }`}>
+                + Create
+              </Link>
+            </motion.div>
+          )}
+        </div>
+
+        {/* Right */}
+        <div className="flex items-center gap-3">
+          {walletError && <span className="text-no text-xs max-w-[180px] truncate">{walletError}</span>}
+
+          {account && score !== null && (
+            <motion.div
+              animate={{ scale: [1, 1.05, 1] }}
+              transition={{ repeat: Infinity, duration: 2 }}
+              className="bg-gold/10 border border-gold/30 rounded-full px-3 py-1 font-mono text-gold text-sm"
+            >
+              ⭐ {score} pts
+            </motion.div>
+          )}
+
+          {account ? (
+            <div className="bg-elevated border border-primary/20 rounded-full px-3 py-1.5 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-yes animate-pulse" />
+              <span className="font-mono text-xs text-secondary">{short}</span>
+            </div>
+          ) : (
+            <motion.button
+              whileHover={{ scale: 1.02, boxShadow: '0 0 20px rgba(91,110,245,0.5)' }}
+              whileTap={{ scale: 0.98 }}
+              onClick={connect}
+              className="bg-gradient-to-r from-primary to-indigo-700 text-white font-display font-semibold text-sm px-5 py-2 rounded-xl transition-all duration-200"
+            >
+              Connect Wallet
+            </motion.button>
+          )}
+        </div>
       </div>
     </nav>
   );
 }
-
-const s = {
-  bar:   { display:'flex', justifyContent:'space-between', alignItems:'center', padding:'14px 28px', background:'#0f0f17', borderBottom:'1px solid #1e1e2e', position:'sticky', top:0, zIndex:100 },
-  left:  { display:'flex', alignItems:'center', gap:24 },
-  right: { display:'flex', alignItems:'center', gap:12 },
-  logo:  { fontSize:'1.2rem', fontWeight:800, color:'#a89cf7', textDecoration:'none', letterSpacing:'-0.5px' },
-  link:  { color:'#888', textDecoration:'none', fontSize:'0.9rem', transition:'color .15s' },
-  addr:  { background:'#1e1e2e', padding:'6px 14px', borderRadius:20, fontSize:'0.85rem', color:'#a89cf7' },
-  score: { background:'#1e1b4b', padding:'4px 12px', borderRadius:20, fontSize:'0.8rem', color:'#facc15', fontWeight:600 },
-  btn:   { background:'#7c6af7', color:'#fff', border:'none', borderRadius:8, padding:'8px 16px', cursor:'pointer', fontWeight:600 },
-  err:   { color:'#f87171', fontSize:'0.8rem', maxWidth:220 },
-};
