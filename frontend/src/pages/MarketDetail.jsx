@@ -142,12 +142,7 @@ export default function MarketDetail() {
     }
   }
 
-  if (!market) return (
-    <div className="flex justify-center items-center h-[60vh]">
-      <div className="w-10 h-10 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
-    </div>
-  );
-
+  // All hooks must be before any early return
   const yesF = parseFloat(onChain.yes);
   const noF  = parseFloat(onChain.no);
   const total = (yesF + noF).toFixed(4);
@@ -156,11 +151,6 @@ export default function MarketDetail() {
   const yesPct  = (yesF + noF) > 0 ? Math.round((yesF / (yesF + noF)) * 100) : 50;
   const isResolved = onChain.resolved;
   const busy = txStatus === "pending";
-  const cat  = market.category || "Custom";
-  const grad = CATEGORY_GRADIENTS[cat] || CATEGORY_GRADIENTS.Custom;
-  const short = `${market.creator.slice(0,6)}...${market.creator.slice(-4)}`;
-  const alreadyChallenged = market?.challenges?.some(c => c.wallet?.toLowerCase() === account?.toLowerCase());
-  const challengeCount = market?.challenges?.length || 0;
 
   const potentialReturn = useMemo(() => {
     if (!amount || isNaN(parseFloat(amount))) return null;
@@ -168,6 +158,18 @@ export default function MarketDetail() {
     if (pool <= 0) return null;
     return ((parseFloat(amount) * (yesF + noF)) / pool).toFixed(4);
   }, [amount, betSide, yesF, noF]);
+
+  if (!market) return (
+    <div className="flex justify-center items-center h-[60vh]">
+      <div className="w-10 h-10 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
+    </div>
+  );
+
+  const cat  = market.category || "Custom";
+  const grad = CATEGORY_GRADIENTS[cat] || CATEGORY_GRADIENTS.Custom;
+  const short = `${market.creator.slice(0,6)}...${market.creator.slice(-4)}`;
+  const alreadyChallenged = market?.challenges?.some(c => c.wallet?.toLowerCase() === account?.toLowerCase());
+  const challengeCount = market?.challenges?.length || 0;
 
   return (
     <main className="max-w-3xl mx-auto px-6 py-8">
@@ -388,5 +390,6 @@ export default function MarketDetail() {
     </main>
   );
 }
+
 
 
