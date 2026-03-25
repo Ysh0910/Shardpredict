@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback, useMemo } from "react";
+﻿import { useState, useEffect, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Contract, parseEther, formatEther } from "ethers";
 import { motion } from "framer-motion";
@@ -152,12 +152,11 @@ export default function MarketDetail() {
   const isResolved = onChain.resolved;
   const busy = txStatus === "pending";
 
-  const potentialReturn = useMemo(() => {
-    if (!amount || isNaN(parseFloat(amount))) return null;
-    const pool = betSide === "yes" ? yesF : noF;
-    if (pool <= 0) return null;
-    return ((parseFloat(amount) * (yesF + noF)) / pool).toFixed(4);
-  }, [amount, betSide, yesF, noF]);
+  const _amt = parseFloat(amount);
+  const _pool = betSide === "yes" ? yesF : noF;
+  const potentialReturn = (amount && !isNaN(_amt) && _pool > 0)
+    ? ((_amt * (yesF + noF)) / _pool).toFixed(4)
+    : null;
 
   if (!market) return (
     <div className="flex justify-center items-center h-[60vh]">
@@ -390,6 +389,7 @@ export default function MarketDetail() {
     </main>
   );
 }
+
 
 
 
