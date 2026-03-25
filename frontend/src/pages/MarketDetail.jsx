@@ -38,6 +38,8 @@ export default function MarketDetail() {
   const [txError,      setTxError]      = useState(null);
   const [betSide,      setBetSide]      = useState("yes");
   const [amount,       setAmount]       = useState("");
+  const [challenging,  setChallenging]  = useState(false);
+  const [challengeMsg, setChallengeMsg] = useState(null);
 
   useEffect(() => {
     fetch("/markets").then(r => r.json()).then(list => {
@@ -93,6 +95,40 @@ export default function MarketDetail() {
     await runTx(() => c.claim(Number(id)));
   }
 
+  async function challengeResolution() {
+    if (!account) return;
+    setChallenging(true);
+    setChallengeMsg(null);
+    try {
+      const res = await fetch("/markets/challenge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ marketId: Number(id), wallet: account }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      
+      setChallengeMsg({
+        type: "success",
+        text: data.verificationTriggered 
+          ? `Challenge recorded! Threshold reached (${data.challengeCount}/${data.threshold}). AI verification in progress...`
+          : `Challenge recorded (${data.challengeCount}/${data.threshold}). ${data.threshold - data.challengeCount} more needed for verification.`
+      });
+      
+      // Refresh market data
+      setTimeout(() => {
+        fetch("/markets").then(r => r.json()).then(list => {
+          const m = list.find(x => String(x.marketId) === String(id));
+          if (m) setMarket(m);
+        });
+      }, 1000);
+    } catch (err) {
+      setChallengeMsg({ type: "error", text: err.message });
+    } finally {
+      setChallenging(false);
+    }
+  }
+
   const yesF = parseFloat(onChain.yes);
   const noF  = parseFloat(onChain.no);
   const total = (yesF + noF).toFixed(4);
@@ -103,6 +139,35 @@ export default function MarketDetail() {
   const busy = txStatus === "pending";
   const cat  = market ? (market.category || "Custom") : "Custom";
   const grad = CATEGORY_GRADIENTS[cat] || CATEGORY_GRADIENTS.Custom;
+  const alreadyChallenged = market?.challenges?.some(c => c.wallet.toLowerCase() === account?.toLowerCase());
+  const challengeCount = market?.challenges?.length || 0;
+
+  const getVerificationBadge = () => {
+    if (!market?.resolved) return null;
+    
+    switch (market.verificationStatus) {
+      case 'verified':
+        return (
+          <span className="bg-yes/10 border border-yes/30 text-yes rounded-full px-3 py-1 text-sm font-mono flex items-center gap-2">
+            <span className="text-lg">✓</span> AI Verified
+          </span>
+        );
+      case 'disputed':
+        return (
+          <span className="bg-no/10 border border-no/30 text-no rounded-full px-3 py-1 text-sm font-mono flex items-center gap-2">
+            <span className="text-lg">⚠</span> Disputed by AI
+          </span>
+        );
+      case 'verifying':
+        return (
+          <span className="bg-gold/10 border border-gold/30 text-gold rounded-full px-3 py-1 text-sm font-mono flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-gold animate-pulse" />AI Verifying...
+          </span>
+        );
+      default:
+        return null;
+    }
+  };
 
   const potentialReturn = useMemo(() => {
     if (!amount || isNaN(parseFloat(amount))) return null;
@@ -284,6 +349,69 @@ export default function MarketDetail() {
             </a>
           )}
         </motion.div>
+      )}
+
+      {/* Verification Status & Challenge */}
+      {isResolved && (
+        <div className="glass-card p-6 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-display text-lg font-semibold text-white">Resolution Verification</h2>
+            {getVerificationBadge()}
+          </div>
+
+          {market?.verificationResult && (
+            <div className={`glass-card p-4 mb-4 border-l-4 ${
+              market.verificationStatus === 'verified' ? 'border-yes' : 
+              market.verificationStatus === 'disputed' ? 'border-no' : 'border-gold'
+            }`}>
+              <p className="text-sm text-secondary font-mono mb-1">AI Analysis:</p>
+              <p className="text-white text-sm">{market.verificationResult}</p>
+            </div>
+          )}
+
+          <div className="flex items-center justify-between mb-3">
+            <div className="text-secondary text-sm font-mono">
+              {challengeCount} challenge{challengeCount !== 1 ? 's' : ''} submitted
+            </div>
+            {market?.verificationStatus === 'pending' && (
+              <div className="text-xs text-secondary font-mono">
+                Need 3 challenges for AI verification
+              </div>
+            )}
+          </div>
+
+          {!alreadyChallenged && account && (
+            <motion.button
+              whileHover={{ scale:1.01 }}
+              whileTap={{ scale:0.98 }}
+              onClick={challengeResolution}
+              disabled={challenging || !account}
+              className="w-full py-3 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 font-display font-bold text-base text-sm border border-amber-500/30"
+            >
+              {challenging ? "Submitting..." : "⚠ Challenge This Resolution"}
+            </motion.button>
+          )}
+
+          {alreadyChallenged && (
+            <div className="glass-card bg-gold/5 border-gold/20 p-3 text-center">
+              <p className="text-gold text-sm font-mono">You have already challenged this market</p>
+            </div>
+          )}
+
+          {challengeMsg && (
+            <div className={`glass-card p-3 mt-3 border-l-4 ${
+              challengeMsg.type === 'success' ? 'border-yes text-yes' : 'border-no text-no'
+            }`}>
+              <p className="text-sm font-mono">{challengeMsg.text}</p>
+            </div>
+          )}
+
+          {!account && (
+            <p className="text-secondary text-xs text-center mt-3 font-mono">
+              Connect wallet to challenge resolution
+            </p>
+          )}
+        </div>
       )}
 
       {/* Owner resolve */}
