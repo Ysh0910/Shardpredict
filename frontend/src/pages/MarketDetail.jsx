@@ -1,46 +1,66 @@
-﻿import { useState, useEffect, useCallback, useMemo } from "react";
-import { useParams, Link } from "react-router-dom";
-import { Contract, parseEther, formatEther } from "ethers";
-import { motion, AnimatePresence } from "framer-motion";
-import { useApp } from "../App";
-import { CONTRACT_ADDRESS, CONTRACT_ABI } from "../contract";
-
-const CATEGORY_GRADIENTS = {
-  Cricket: "from-emerald-900 to-green-950",
-  Politics: "from-blue-900 to-slate-950",
-  Tech: "from-violet-900 to-indigo-950",
-  Custom: "from-slate-800 to-slate-950",
-};
+import { useState, useEffect, useCallback } from 'react';
+import { useParams, Link } from 'react-router-dom';
+import { Contract, parseEther, formatEther } from 'ethers';
+import { useApp } from '../App';
+import { CONTRACT_ADDRESS, CONTRACT_ABI } from '../contract';
+import '../styles/market-detail.css';
 
 function TxStatus({ status, error }) {
   if (!status) return null;
-  const cfg = {
-    pending: { border: "border-gold",    text: "text-gold",    msg: "Transaction pending..." },
-    success: { border: "border-yes",     text: "text-yes",     msg: "Transaction confirmed!" },
-    error:   { border: "border-no",      text: "text-no",      msg: error || "Transaction failed" },
-  }[status];
+  const cls = { pending:'detail__tx-pending', success:'detail__tx-success', error:'detail__tx-error' }[status];
+  const txt = { pending:'⏳ Transaction pending…', success:'✅ Transaction confirmed', error:`❌ ${error}` }[status];
+  return <div className={cls}>{txt}</div>;
+}
+
+
+function BetslipPanel({ open, onClose, onBet, busy, account }) {
+  const [amount, setAmount] = useState('');
+  const [side, setSide] = useState('yes');
+  if (!open) return null;
   return (
-    <div className={`glass-card border-l-4 ${cfg.border} p-3 text-sm font-mono ${cfg.text}`}>
-      {cfg.msg}
-    </div>
+    <>
+      <div className="betslip-overlay" onClick={onClose} />
+      <div className="betslip-panel animate-slide-in">
+        <div className="betslip__header">
+          <span className="betslip__title">Place Bet</span>
+          <button className="betslip__close" onClick={onClose}>✕</button>
+        </div>
+        <div className="betslip__sides">
+          <button className={`betslip__side ${side === 'yes' ? 'betslip__side--yes' : 'betslip__side--inactive'}`} onClick={() => setSide('yes')}>✅ YES</button>
+          <button className={`betslip__side ${side === 'no' ? 'betslip__side--no' : 'betslip__side--inactive'}`} onClick={() => setSide('no')}>❌ NO</button>
+        </div>
+        <label className="betslip__label">Amount (SHM)</label>
+        <input className="betslip__input" type="number" placeholder="0.00" min="0" step="0.001"
+          value={amount} onChange={e => setAmount(e.target.value)} disabled={!account || busy} />
+        <button
+          className={`betslip__submit ${side === 'yes' ? 'betslip__submit--yes' : 'betslip__submit--no'}`}
+          onClick={() => { onBet(side, amount); setAmount(''); }}
+          disabled={!account || busy || !amount}
+        >
+          {busy ? '⏳ Pending…' : `Confirm ${side.toUpperCase()}`}
+        </button>
+        {!account && <p className="betslip__hint">Connect wallet first.</p>}
+      </div>
+    </>
   );
 }
+
 
 export default function MarketDetail() {
   const { id } = useParams();
   const { account, provider, isOwner } = useApp();
+
   const [market,       setMarket]       = useState(null);
-  const [onChain,      setOnChain]      = useState({ yes:"0", no:"0", resolved:false, outcome:false });
-  const [resolveOut,   setResolveOut]   = useState("true");
-  const [proofUrl,     setProofUrl]     = useState("");
+  const [onChain,      setOnChain]      = useState({ yes: '0', no: '0', resolved: false, outcome: false });
+  const [resolveOut,   setResolveOut]   = useState('true');
+  const [proofUrl,     setProofUrl]     = useState('');
   const [backendProof, setBackendProof] = useState(null);
   const [txStatus,     setTxStatus]     = useState(null);
   const [txError,      setTxError]      = useState(null);
-  const [betSide,      setBetSide]      = useState("yes");
-  const [amount,       setAmount]       = useState("");
+  const [betslipOpen,  setBetslipOpen]  = useState(false);
 
   useEffect(() => {
-    fetch("/markets").then(r => r.json()).then(list => {
+    fetch('/markets').then(r => r.json()).then(list => {
       const m = list.find(x => String(x.marketId) === String(id));
       if (m) { setMarket(m); setBackendProof(m.proof || null); }
     }).catch(() => {});
@@ -52,38 +72,40 @@ export default function MarketDetail() {
       const c = new Contract(CONTRACT_ADDRESS, CONTRACT_ABI, provider);
       const r = await c.getMarket(Number(id));
       setOnChain({ yes: formatEther(r[1]), no: formatEther(r[2]), resolved: r[3], outcome: r[4] ?? false });
-    } catch (err) { console.error("getMarket:", err.message); }
+    } catch (err) { console.error('getMarket:', err.message); }
   }, [provider, id]);
 
   useEffect(() => { fetchOnChain(); }, [fetchOnChain]);
 
   async function runTx(fn) {
-    setTxStatus("pending"); setTxError(null);
+    setTxStatus('pending'); setTxError(null);
     try {
       const tx = await fn(); await tx.wait();
-      setTxStatus("success"); await fetchOnChain();
+      setTxStatus('success'); await fetchOnChain();
       setTimeout(() => setTxStatus(null), 3000);
-    } catch (err) { setTxError(err.message); setTxStatus("error"); }
+    } catch (err) { setTxError(err.message); setTxStatus('error'); }
   }
 
-  async function placeBet() {
+  async function placeBet(side, amount) {
     if (!account || !amount) return;
     const signer = await provider.getSigner();
     const c = new Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
-    await runTx(() => betSide === "yes"
+    await runTx(() => side === 'yes'
       ? c.betYes(Number(id), { value: parseEther(amount) })
       : c.betNo(Number(id),  { value: parseEther(amount) }));
-    setAmount("");
-    fetch("/users/score", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ wallet: account, points: 10 }) }).catch(() => {});
+    setBetslipOpen(false);
+    fetch('/users/score', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ wallet: account, points: 10 }) }).catch(() => {});
   }
 
   async function resolve() {
     if (!account) return;
     const signer = await provider.getSigner();
     const c = new Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
-    await runTx(() => c.resolveMarket(Number(id), resolveOut === "true"));
-    fetch("/markets/resolve", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ marketId: Number(id), proof: proofUrl, outcome: resolveOut === "true" }) })
-      .then(r => r.json()).then(d => { if (d.proof) setBackendProof(d.proof); }).catch(() => {});
+    await runTx(() => c.resolveMarket(Number(id), resolveOut === 'true'));
+    fetch('/markets/resolve', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ marketId: Number(id), proof: proofUrl, outcome: resolveOut === 'true' }),
+    }).then(r => r.json()).then(d => { if (d.proof) setBackendProof(d.proof); }).catch(() => {});
   }
 
   async function claim() {
@@ -93,224 +115,114 @@ export default function MarketDetail() {
     await runTx(() => c.claim(Number(id)));
   }
 
-  const yesF = parseFloat(onChain.yes);
-  const noF  = parseFloat(onChain.no);
-  const total = (yesF + noF).toFixed(4);
-  const oddsYes = yesF > 0 ? ((yesF + noF) / yesF).toFixed(2) : null;
-  const oddsNo  = noF  > 0 ? ((yesF + noF) / noF).toFixed(2)  : null;
-  const yesPct  = (yesF + noF) > 0 ? Math.round((yesF / (yesF + noF)) * 100) : 50;
-  const isResolved = onChain.resolved;
-  const busy = txStatus === "pending";
-  const cat  = market ? (market.category || "Custom") : "Custom";
-  const grad = CATEGORY_GRADIENTS[cat] || CATEGORY_GRADIENTS.Custom;
-
-  const potentialReturn = useMemo(() => {
-    if (!amount || isNaN(parseFloat(amount))) return null;
-    const pool = betSide === "yes" ? yesF : noF;
-    if (pool <= 0) return null;
-    return ((parseFloat(amount) * (yesF + noF)) / pool).toFixed(4);
-  }, [amount, betSide, yesF, noF]);
-
   if (!market) return (
-    <div className="flex justify-center items-center h-[60vh]">
-      <div className="w-10 h-10 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
-    </div>
+    <div className="detail__loading"><div className="detail__spinner" /></div>
   );
 
-  const short = `${market.creator.slice(0,6)}...${market.creator.slice(-4)}`;
+  const yesF       = parseFloat(onChain.yes);
+  const noF        = parseFloat(onChain.no);
+  const total      = (yesF + noF).toFixed(4);
+  const oddsYes    = yesF > 0 ? ((yesF + noF) / yesF).toFixed(2) : '—';
+  const oddsNo     = noF  > 0 ? ((yesF + noF) / noF).toFixed(2)  : '—';
+  const yesPct     = (yesF + noF) > 0 ? Math.round((yesF / (yesF + noF)) * 100) : 50;
+  const isResolved = onChain.resolved;
+  const busy       = txStatus === 'pending';
+  const short      = `${market.creator.slice(0, 6)}…${market.creator.slice(-4)}`;
 
   return (
-    <main className="max-w-3xl mx-auto px-6 py-8">
-      <Link to="/" className="text-primary text-sm font-mono hover:opacity-75 transition mb-6 inline-block">
-        back to markets
-      </Link>
-
-      {/* Hero */}
-      <div className="relative h-56 overflow-hidden rounded-2xl mb-6">
-        {market.image
-          ? <img src={market.image} alt="" className="w-full h-full object-cover" onError={e => { e.target.style.display="none"; }} />
-          : <div className={`w-full h-full bg-gradient-to-br ${grad}`} />
-        }
-        <div className="absolute inset-0 bg-gradient-to-t from-base to-transparent" />
-        <div className="absolute bottom-4 left-5 right-20">
-          <h1 className="font-display text-2xl font-bold text-white leading-tight">{market.question}</h1>
+    <main className="detail animate-fade-up">
+      <Link to="/" className="detail__back">← Back to Markets</Link>
+      <div className="detail__card">
+        <div className="detail__header">
+          <h1 className="detail__title">{market.question}</h1>
+          <span className={isResolved ? 'detail__badge-resolved' : 'detail__badge-open'}>
+            {isResolved ? `Resolved: ${onChain.outcome ? 'YES' : 'NO'}` : '● Open'}
+          </span>
         </div>
-        <div className="absolute top-4 right-4 flex gap-2">
-          <span className="bg-elevated/80 text-primary border border-primary/30 rounded-full px-2 py-0.5 text-xs font-mono backdrop-blur-sm">{cat}</span>
-          {isResolved
-            ? <span className="bg-gold/10 border border-gold/30 text-gold rounded-full px-2 py-0.5 text-xs font-mono">Resolved: {onChain.outcome ? "YES" : "NO"}</span>
-            : <span className="bg-yes/10 border border-yes/30 text-yes rounded-full px-2 py-0.5 text-xs flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-yes animate-pulse" />OPEN</span>
-          }
+        <div className="detail__meta">
+          <span className="detail__creator">👤 {short}</span>
+          <span className="detail__cat">{market.category || 'Custom'}</span>
         </div>
-      </div>
-
-      <p className="text-secondary text-xs font-mono mb-6">by {short}</p>
-
-      {/* Pool stats */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
-        <motion.div initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.1 }}
-          className="glass-card p-4 border-l-4 border-yes">
-          <p className="text-secondary text-xs font-mono uppercase tracking-widest mb-1">YES Pool</p>
-          <p className="font-display text-3xl font-bold text-yes">{parseFloat(onChain.yes).toFixed(4)}</p>
-          <p className="text-secondary text-xs font-mono">SHM</p>
-        </motion.div>
-        <motion.div initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.15 }}
-          className="glass-card p-4 border-l-4 border-no">
-          <p className="text-secondary text-xs font-mono uppercase tracking-widest mb-1">NO Pool</p>
-          <p className="font-display text-3xl font-bold text-no">{parseFloat(onChain.no).toFixed(4)}</p>
-          <p className="text-secondary text-xs font-mono">SHM</p>
-        </motion.div>
-        <motion.div initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.2 }}
-          className="glass-card p-4 border-l-4 border-primary">
-          <p className="text-secondary text-xs font-mono uppercase tracking-widest mb-1">Total Pool</p>
-          <p className="font-display text-3xl font-bold text-primary">{total}</p>
-          <p className="text-secondary text-xs font-mono">SHM</p>
-        </motion.div>
-      </div>
-
-      {/* Probability bar */}
-      <div className="glass-card p-5 mb-6">
-        <div className="flex justify-between text-sm font-mono mb-2">
-          <span className="text-yes">YES {yesPct}%</span>
-          <span className="text-secondary text-xs">probability</span>
-          <span className="text-no">NO {100-yesPct}%</span>
-        </div>
-        <div className="h-6 rounded-full overflow-hidden flex bg-elevated">
-          <motion.div className="h-full bg-yes" style={{ boxShadow:"0 0 12px rgba(0,230,118,0.4)" }}
-            initial={{ width:0 }} animate={{ width:`${yesPct}%` }} transition={{ duration:0.8, ease:"easeOut" }} />
-          <motion.div className="h-full bg-no" style={{ boxShadow:"0 0 12px rgba(255,61,87,0.4)" }}
-            initial={{ width:0 }} animate={{ width:`${100-yesPct}%` }} transition={{ duration:0.8, ease:"easeOut" }} />
-        </div>
-        <p className="text-yes text-xs font-mono mt-2">{yesPct}% chance this resolves YES</p>
-      </div>
-
-      {/* Bet slip */}
-      {!isResolved && (
-        <div className="glass-card p-6 mb-6">
-          <h2 className="font-display text-lg font-semibold text-white mb-4">Place Bet</h2>
-
-          {/* Side selector */}
-          <div className="grid grid-cols-2 gap-3 mb-5">
-            <motion.button whileTap={{ scale:0.97 }} onClick={() => setBetSide("yes")}
-              className={`p-4 rounded-xl border-2 font-display font-semibold text-sm transition-all duration-200 ${
-                betSide === "yes"
-                  ? "border-yes bg-yes/5 text-yes"
-                  : "border-primary/20 glass-card text-secondary hover:border-yes/40"
-              }`}
-              style={betSide === "yes" ? { boxShadow:"0 0 20px rgba(0,230,118,0.25)" } : {}}>
-              BET YES
-            </motion.button>
-            <motion.button whileTap={{ scale:0.97 }} onClick={() => setBetSide("no")}
-              className={`p-4 rounded-xl border-2 font-display font-semibold text-sm transition-all duration-200 ${
-                betSide === "no"
-                  ? "border-no bg-no/5 text-no"
-                  : "border-primary/20 glass-card text-secondary hover:border-no/40"
-              }`}
-              style={betSide === "no" ? { boxShadow:"0 0 20px rgba(255,61,87,0.25)" } : {}}>
-              BET NO
-            </motion.button>
+        <div className="detail__pool-row">
+          <div className="detail__pool-box detail__pool-box--yes">
+            <p className="detail__pool-label">YES Pool</p>
+            <p className="detail__pool-val detail__pool-val--yes">{onChain.yes}</p>
+            <p className="detail__pool-unit">SHM</p>
           </div>
-
-          {/* Amount input */}
-          <input
-            type="number" placeholder="0.0 SHM" min="0" step="0.001"
-            value={amount} onChange={e => setAmount(e.target.value)}
-            disabled={!account || busy}
-            className="input-dark mb-3 text-lg"
-          />
-
-          {/* Quick chips */}
-          <div className="flex gap-2 mb-5">
-            {["0.1","0.5","1","5"].map(v => (
-              <button key={v} onClick={() => setAmount(v)}
-                className="bg-elevated hover:bg-primary/20 text-secondary hover:text-white font-mono text-xs px-3 py-1.5 rounded-lg transition-all duration-150">
-                {v}
-              </button>
-            ))}
+          <div className="detail__pool-box detail__pool-box--no">
+            <p className="detail__pool-label">NO Pool</p>
+            <p className="detail__pool-val detail__pool-val--no">{onChain.no}</p>
+            <p className="detail__pool-unit">SHM</p>
           </div>
-
-          {/* Potential return */}
-          {potentialReturn && (
-            <div className="glass-card bg-primary/5 border-primary/20 p-4 mb-5">
-              <p className="text-secondary text-xs font-mono uppercase tracking-widest mb-1">Potential Return</p>
-              <p className="font-display text-2xl font-bold text-primary">{potentialReturn} SHM</p>
+          <div className="detail__pool-box detail__pool-box--tot">
+            <p className="detail__pool-label">Total Pool</p>
+            <p className="detail__pool-val detail__pool-val--tot">{total}</p>
+            <p className="detail__pool-unit">SHM</p>
+          </div>
+        </div>
+        <div>
+          <div className="detail__bar-wrap">
+            <div className="detail__bar-yes" style={{ width: `${yesPct}%` }} />
+            <div className="detail__bar-no"  style={{ width: `${100 - yesPct}%` }} />
+          </div>
+          <div className="detail__bar-labels">
+            <span className="detail__bar-label-yes">YES {yesPct}%</span>
+            <span className="detail__bar-label-no">NO {100 - yesPct}%</span>
+          </div>
+        </div>
+        <div className="detail__odds-row">
+          <div className="detail__odds-yes">
+            <span className="detail__odds-icon">📈</span>
+            <div>
+              <p className="detail__odds-label">Bet 1 SHM on YES</p>
+              <p className="detail__odds-val">earn {oddsYes} SHM</p>
             </div>
-          )}
-
-          {/* Odds */}
-          <div className="flex gap-3 mb-5">
-            {oddsYes && <div className="glass-card p-3 flex-1 text-center">
-              <p className="text-secondary text-xs font-mono mb-1">1 SHM on YES earns</p>
-              <p className="text-yes font-mono font-bold">{oddsYes} SHM</p>
-            </div>}
-            {oddsNo && <div className="glass-card p-3 flex-1 text-center">
-              <p className="text-secondary text-xs font-mono mb-1">1 SHM on NO earns</p>
-              <p className="text-no font-mono font-bold">{oddsNo} SHM</p>
-            </div>}
           </div>
-
-          <motion.button
-            whileHover={{ scale:1.01 }} whileTap={{ scale:0.98 }}
-            onClick={placeBet}
-            disabled={!account || busy || !amount}
-            className={`w-full py-3 rounded-xl font-display text-lg font-bold text-base transition-all duration-200 ${
-              betSide === "yes"
-                ? "bg-gradient-to-r from-yes to-emerald-500"
-                : "bg-gradient-to-r from-no to-rose-700"
-            }`}
-          >
-            {busy ? "Pending..." : `Confirm Bet ${betSide.toUpperCase()}`}
-          </motion.button>
-          {!account && <p className="text-secondary text-xs text-center mt-3 font-mono">Connect wallet to place bets</p>}
-        </div>
-      )}
-
-      {/* Claim */}
-      {isResolved && (
-        <motion.div
-          animate={{ boxShadow: ["0 0 0px rgba(0,230,118,0)", "0 0 25px rgba(0,230,118,0.4)", "0 0 0px rgba(0,230,118,0)"] }}
-          transition={{ repeat:Infinity, duration:1.5, repeatType:"reverse" }}
-          className="mb-6"
-        >
-          <motion.button whileHover={{ scale:1.01 }} whileTap={{ scale:0.98 }}
-            onClick={claim} disabled={!account || busy}
-            className="w-full py-4 rounded-xl bg-gradient-to-r from-yes to-teal-400 font-display text-xl font-bold text-base">
-            {busy ? "..." : "Claim Winnings"}
-          </motion.button>
-          {backendProof && (
-            <a href={backendProof} target="_blank" rel="noopener noreferrer"
-              className="block text-center text-primary text-sm font-mono mt-3 hover:opacity-75 transition">
-              View Proof
-            </a>
-          )}
-        </motion.div>
-      )}
-
-      {/* Owner resolve */}
-      {!isResolved && isOwner && (
-        <div className="glass-card border border-gold/20 bg-gold/5 p-5 mb-6">
-          <p className="font-display text-gold font-semibold mb-4">Admin: Resolve Market</p>
-          <div className="flex gap-3 mb-4">
-            <button onClick={() => setResolveOut("true")}
-              className={`flex-1 py-2.5 rounded-xl font-display font-semibold text-sm border-2 transition-all ${
-                resolveOut === "true" ? "border-yes bg-yes/10 text-yes" : "border-primary/20 text-secondary hover:border-yes/40"
-              }`}>Resolve YES</button>
-            <button onClick={() => setResolveOut("false")}
-              className={`flex-1 py-2.5 rounded-xl font-display font-semibold text-sm border-2 transition-all ${
-                resolveOut === "false" ? "border-no bg-no/10 text-no" : "border-primary/20 text-secondary hover:border-no/40"
-              }`}>Resolve NO</button>
+          <div className="detail__odds-no">
+            <span className="detail__odds-icon">📉</span>
+            <div>
+              <p className="detail__odds-label">Bet 1 SHM on NO</p>
+              <p className="detail__odds-val">earn {oddsNo} SHM</p>
+            </div>
           </div>
-          <input type="url" placeholder="Proof URL (optional)" value={proofUrl} onChange={e => setProofUrl(e.target.value)}
-            disabled={busy} className="input-dark mb-3" />
-          <motion.button whileHover={{ scale:1.01 }} whileTap={{ scale:0.98 }}
-            onClick={resolve} disabled={!account || busy}
-            className="w-full py-2.5 rounded-xl bg-gradient-to-r from-gold to-amber-500 font-display font-bold text-base text-sm">
-            {busy ? "..." : `Confirm Resolve ${resolveOut === "true" ? "YES" : "NO"}`}
-          </motion.button>
         </div>
-      )}
-
-      {txStatus && <TxStatus status={txStatus} error={txError} />}
+        {!isResolved && (
+          <button className="detail__bet-cta" onClick={() => setBetslipOpen(true)} disabled={!account || busy}>
+            {account ? '💰 Place Bet' : 'Connect Wallet to Bet'}
+          </button>
+        )}
+        {!isResolved && isOwner && (
+          <div className="detail__resolve-box">
+            <p className="detail__resolve-label">⚙️ Resolve Market</p>
+            <div className="detail__resolve-row">
+              <select className="detail__select" value={resolveOut} onChange={e => setResolveOut(e.target.value)} disabled={busy}>
+                <option value="true">YES</option>
+                <option value="false">NO</option>
+              </select>
+              <input className="detail__input" type="url" placeholder="Proof URL (optional)"
+                value={proofUrl} onChange={e => setProofUrl(e.target.value)} disabled={busy} />
+              <button className="detail__btn-resolve" onClick={resolve} disabled={!account || busy}>
+                {busy ? '…' : 'Resolve'}
+              </button>
+            </div>
+          </div>
+        )}
+        {isResolved && (
+          <div className="detail__claim-row">
+            <button className="detail__btn-claim" onClick={claim} disabled={!account || busy}>
+              {busy ? '…' : '🏆 Claim Winnings'}
+            </button>
+            {backendProof && (
+              <a href={backendProof} target="_blank" rel="noopener noreferrer" className="detail__proof-link">
+                🔗 View Proof
+              </a>
+            )}
+          </div>
+        )}
+        {txStatus && <TxStatus status={txStatus} error={txError} />}
+        {!account && !isResolved && <p className="detail__hint">Connect your wallet to place bets.</p>}
+      </div>
+      <BetslipPanel open={betslipOpen} onClose={() => setBetslipOpen(false)} onBet={placeBet} busy={busy} account={account} />
     </main>
   );
 }
