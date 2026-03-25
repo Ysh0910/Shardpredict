@@ -3,12 +3,43 @@
 @tailwind utilities;
 
 @layer base {
+  /* ── Dark theme (default) ── */
+  :root {
+    --bg:       #080C14;
+    --surface:  #0E1420;
+    --elevated: #141C2E;
+    --text:     #e2e8f0;
+    --secondary:#8892A4;
+    --mesh1:    rgba(91,110,245,0.12);
+    --mesh2:    rgba(14,20,40,0.8);
+    --dot:      rgba(91,110,245,0.08);
+    --card-shadow: 0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04);
+    --card-bg:  rgba(14,20,32,0.9);
+    --card-border: rgba(91,110,245,0.15);
+  }
+
+  /* ── Light theme ── */
+  :root:not(.dark) {
+    --bg:       #F0F4FF;
+    --surface:  #FFFFFF;
+    --elevated: #EEF2FF;
+    --text:     #0F172A;
+    --secondary:#64748B;
+    --mesh1:    rgba(91,110,245,0.08);
+    --mesh2:    rgba(200,210,255,0.5);
+    --dot:      rgba(91,110,245,0.05);
+    --card-shadow: 0 4px 24px rgba(91,110,245,0.1), inset 0 1px 0 rgba(255,255,255,0.8);
+    --card-bg:  rgba(255,255,255,0.85);
+    --card-border: rgba(91,110,245,0.2);
+  }
+
   body {
     font-family: 'DM Sans', sans-serif;
-    background-color: #080C14;
-    color: #e2e8f0;
+    background-color: var(--bg);
+    color: var(--text);
     min-height: 100vh;
     overflow-x: hidden;
+    transition: background-color 0.3s ease, color 0.3s ease;
   }
 
   /* Animated mesh background */
@@ -18,9 +49,10 @@
     inset: 0;
     z-index: -2;
     background:
-      radial-gradient(ellipse 80% 60% at 20% 10%, rgba(91,110,245,0.12) 0%, transparent 60%),
-      radial-gradient(ellipse 60% 50% at 80% 80%, rgba(14,20,40,0.8) 0%, transparent 55%);
+      radial-gradient(ellipse 80% 60% at 20% 10%, var(--mesh1) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 50% at 80% 80%, var(--mesh2) 0%, transparent 55%);
     animation: meshDrift 18s ease-in-out infinite alternate;
+    transition: background 0.3s ease;
   }
 
   /* Dot-grid texture */
@@ -29,7 +61,7 @@
     position: fixed;
     inset: 0;
     z-index: -1;
-    background-image: radial-gradient(rgba(91,110,245,0.08) 1px, transparent 1px);
+    background-image: radial-gradient(var(--dot) 1px, transparent 1px);
     background-size: 28px 28px;
     pointer-events: none;
   }
@@ -43,8 +75,13 @@
 
 @layer components {
   .glass-card {
-    @apply bg-surface/90 border border-primary/15 rounded-2xl backdrop-blur-xl;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04);
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 1rem;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    box-shadow: var(--card-shadow);
+    transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
   }
 
   .glow-yes     { box-shadow: 0 0 20px rgba(0,230,118,0.25); }
@@ -59,11 +96,18 @@
   .btn-primary:hover { box-shadow: 0 0 20px rgba(91,110,245,0.5); }
 
   .input-dark {
-    @apply bg-elevated border border-primary/20 rounded-xl px-4 py-3
-           text-white font-mono placeholder-secondary/50 w-full
+    background: var(--elevated);
+    border: 1px solid rgba(91,110,245,0.2);
+    @apply rounded-xl px-4 py-3 font-mono w-full
            focus:outline-none focus:border-primary transition-all duration-200;
+    color: var(--text);
   }
+  .input-dark::placeholder { color: var(--secondary); opacity: 0.6; }
   .input-dark:focus { box-shadow: 0 0 0 3px rgba(91,110,245,0.15); }
+
+  /* Light-mode text overrides for Tailwind color classes */
+  :root:not(.dark) .text-secondary { color: #64748B !important; }
+  :root:not(.dark) .text-white     { color: #0F172A !important; }
 }
 
 /* Custom scrollbar */

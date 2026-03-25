@@ -1,15 +1,17 @@
 import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useApp } from '../App';
+import { useTheme } from '../hooks/useTheme';
 
 export default function Navbar() {
   const { account, connect, walletError, score, isOwner } = useApp();
   const { pathname } = useLocation();
+  const { dark, toggle } = useTheme();
   const short = account ? `${account.slice(0, 6)}…${account.slice(-4)}` : null;
 
   return (
-    <nav className="sticky top-0 z-50 bg-base/80 backdrop-blur-2xl border-b border-primary/15"
-         style={{ boxShadow: '0 1px 0 rgba(91,110,245,0.2)' }}>
+    <nav className="sticky top-0 z-50 backdrop-blur-2xl border-b border-primary/15"
+         style={{ background: 'color-mix(in srgb, var(--bg) 80%, transparent)', boxShadow: '0 1px 0 rgba(91,110,245,0.2)' }}>
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
 
         {/* Left */}
@@ -48,6 +50,27 @@ export default function Navbar() {
         {/* Right */}
         <div className="flex items-center gap-3">
           {walletError && <span className="text-no text-xs max-w-[180px] truncate">{walletError}</span>}
+
+          {/* Theme toggle */}
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={toggle}
+            className="w-9 h-9 rounded-xl border border-primary/20 flex items-center justify-center transition-all duration-200 hover:border-primary/50"
+            style={{ background: 'var(--elevated)' }}
+            title={dark ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            <motion.span
+              key={dark ? 'moon' : 'sun'}
+              initial={{ rotate: -30, opacity: 0 }}
+              animate={{ rotate: 0, opacity: 1 }}
+              exit={{ rotate: 30, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="text-base leading-none"
+            >
+              {dark ? '🌙' : '☀️'}
+            </motion.span>
+          </motion.button>
 
           {account && score !== null && (
             <motion.div
