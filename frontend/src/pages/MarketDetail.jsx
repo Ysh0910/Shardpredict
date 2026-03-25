@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+﻿import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Contract, parseEther, formatEther } from "ethers";
 import { motion } from "framer-motion";
 import { useApp } from "../App";
+import { apiUrl } from "../api";
 import { CONTRACT_ADDRESS, CONTRACT_ABI } from "../contract";
 
 const CATEGORY_GRADIENTS = {
@@ -29,8 +30,8 @@ function TxStatus({ status, error }) {
 function VerificationBadge({ status }) {
   if (!status) return null;
   const cfg = {
-    verified:  { cls: "bg-yes/10 border-yes/30 text-yes",  icon: "✓", label: "AI Verified" },
-    disputed:  { cls: "bg-no/10 border-no/30 text-no",     icon: "⚠", label: "Disputed by AI" },
+    verified:  { cls: "bg-yes/10 border-yes/30 text-yes",  icon: "âœ“", label: "AI Verified" },
+    disputed:  { cls: "bg-no/10 border-no/30 text-no",     icon: "âš ", label: "Disputed by AI" },
     verifying: { cls: "bg-gold/10 border-gold/30 text-gold", icon: null, label: "AI Verifying..." },
   }[status];
   if (!cfg) return null;
@@ -61,7 +62,7 @@ export default function MarketDetail() {
   const [challengeMsg, setChallengeMsg] = useState(null);
 
   const loadMarket = () => {
-    fetch("/markets").then(r => r.json()).then(list => {
+    fetch(apiUrl("/markets")).then(r => r.json()).then(list => {
       const m = list.find(x => String(x.marketId) === String(id));
       if (m) { setMarket(m); setBackendProof(m.proof || null); }
     }).catch(() => {});
@@ -97,7 +98,7 @@ export default function MarketDetail() {
       ? c.betYes(Number(id), { value: parseEther(amount) })
       : c.betNo(Number(id),  { value: parseEther(amount) }));
     setAmount("");
-    fetch("/users/score", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ wallet: account, points: 10 }) }).catch(() => {});
+    fetch(apiUrl("/users/score"), { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ wallet: account, points: 10 }) }).catch(() => {});
   }
 
   async function resolve() {
@@ -105,7 +106,7 @@ export default function MarketDetail() {
     const signer = await provider.getSigner();
     const c = new Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
     await runTx(() => c.resolveMarket(Number(id), resolveOut === "true"));
-    fetch("/markets/resolve", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ marketId: Number(id), proof: proofUrl, outcome: resolveOut === "true" }) })
+    fetch(apiUrl("/markets/resolve"), { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ marketId: Number(id), proof: proofUrl, outcome: resolveOut === "true" }) })
       .then(r => r.json()).then(d => { if (d.proof) setBackendProof(d.proof); }).catch(() => {});
   }
 
@@ -387,3 +388,5 @@ export default function MarketDetail() {
     </main>
   );
 }
+
+

@@ -4,6 +4,7 @@ import { Contract } from 'ethers';
 import { motion } from 'framer-motion';
 import { useApp } from '../App';
 import { CONTRACT_ADDRESS, CONTRACT_ABI } from '../contract';
+import { apiUrl } from '../api';
 
 const CATEGORIES = ['Cricket', 'Politics', 'Tech', 'Custom'];
 
@@ -39,7 +40,7 @@ export default function CreateMarketPage() {
       await tx.wait();
       const count    = await contract.marketCount();
       const marketId = Number(count) - 1;
-      const res = await fetch('/markets', {
+      const res = await fetch(apiUrl('/markets'), {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ marketId, question, creator: account, category, image: image || null }),
       });

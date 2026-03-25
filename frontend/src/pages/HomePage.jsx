@@ -4,6 +4,7 @@ import { Contract, formatEther } from 'ethers';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useApp } from '../App';
 import { CONTRACT_ADDRESS, CONTRACT_ABI } from '../contract';
+import { apiUrl } from '../api';
 
 const CATEGORIES = [
   { key: 'All',      label: '🔥 All' },
@@ -267,7 +268,7 @@ export default function HomePage() {
 
   const load = useCallback(() => {
     setLoading(true);
-    fetch('/markets').then(r => r.json()).then(d => { setMarkets(d); setErr(null); setLoading(false); })
+    fetch(apiUrl('/markets')).then(r => r.json()).then(d => { setMarkets(d); setErr(null); setLoading(false); })
       .catch(() => { setErr('Failed to load markets'); setLoading(false); });
   }, []);
 

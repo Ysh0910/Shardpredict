@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Contract, parseEther, formatEther } from 'ethers';
 import { CONTRACT_ADDRESS, CONTRACT_ABI } from '../contract';
+import { apiUrl } from '../api';
 import '../styles/market-card.css';
 
 function TxStatus({ status, error }) {
@@ -47,7 +48,7 @@ export default function MarketCard({ market, provider, account, isOwner }) {
       ? c.betYes(market.marketId, { value: parseEther(amount) })
       : c.betNo(market.marketId,  { value: parseEther(amount) }));
     setAmount('');
-    fetch('/users/score', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ wallet: account, points: 10 }) }).catch(() => {});
+    fetch(apiUrl('/users/score'), { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ wallet: account, points: 10 }) }).catch(() => {});
   }
 
   async function resolve() {
@@ -55,7 +56,7 @@ export default function MarketCard({ market, provider, account, isOwner }) {
     const signer = await provider.getSigner();
     const c = new Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
     await runTx(() => c.resolveMarket(market.marketId, resolveOut === 'true'));
-    fetch('/markets/resolve', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ marketId: market.marketId, proof: proofUrl, outcome: resolveOut === 'true' }) })
+    fetch(apiUrl('/markets/resolve'), { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ marketId: market.marketId, proof: proofUrl, outcome: resolveOut === 'true' }) })
       .then(r => r.json()).then(d => { if (d.proof) setBackendProof(d.proof); }).catch(() => {});
   }
 

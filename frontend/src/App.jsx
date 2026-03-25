@@ -3,6 +3,7 @@ import { Routes, Route } from 'react-router-dom';
 import { Contract } from 'ethers';
 import { useWallet } from './hooks/useWallet';
 import { CONTRACT_ADDRESS, CONTRACT_ABI } from './contract';
+import { apiUrl } from './api';
 import Navbar        from './components/Navbar';
 import HomePage      from './pages/HomePage';
 import MarketDetail  from './pages/MarketDetail';
@@ -25,7 +26,7 @@ export default function App() {
 
   useEffect(() => {
     if (!account) { setScore(null); return; }
-    fetch(`/users/${account}`)
+    fetch(apiUrl(`/users/${account}`))
       .then(r => r.json())
       .then(d => setScore(d.score ?? 0))
       .catch(() => setScore(0));
