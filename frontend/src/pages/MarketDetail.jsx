@@ -185,8 +185,8 @@ export default function MarketDetail() {
   const challengeCount = market?.challenges?.length || 0;
 
   return (
-    <main className="max-w-3xl mx-auto px-6 py-8">
-      <Link to="/" className="text-primary text-sm font-mono hover:opacity-75 transition mb-6 inline-block">
+    <main className="max-w-3xl mx-auto px-4 sm:px-6 py-4 sm:py-8">
+      <Link to="/" className="text-primary text-sm font-mono hover:opacity-75 transition mb-4 sm:mb-6 inline-block">
         back to markets
       </Link>
 
@@ -197,8 +197,8 @@ export default function MarketDetail() {
           : <div className={`w-full h-full bg-gradient-to-br ${grad}`} />
         }
         <div className="absolute inset-0 bg-gradient-to-t from-base to-transparent" />
-        <div className="absolute bottom-4 left-5 right-24">
-          <h1 className="font-display text-2xl font-bold text-white leading-tight">{market.question}</h1>
+        <div className="absolute bottom-4 left-5 right-5 sm:right-24">
+          <h1 className="font-display text-xl sm:text-2xl font-bold text-white leading-tight">{market.question}</h1>
         </div>
         <div className="absolute top-4 right-4 flex flex-col gap-2 items-end">
           <span className="bg-elevated/80 text-primary border border-primary/30 rounded-full px-2 py-0.5 text-xs font-mono backdrop-blur-sm">{cat}</span>
@@ -212,7 +212,7 @@ export default function MarketDetail() {
       <p className="text-secondary text-xs font-mono mb-6">by {short}</p>
 
       {/* Pool stats */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-6">
         {[
           { label:"YES Pool", val:onChain.yes, cls:"border-yes", textCls:"text-yes" },
           { label:"NO Pool",  val:onChain.no,  cls:"border-no",  textCls:"text-no"  },
@@ -221,8 +221,10 @@ export default function MarketDetail() {
           <motion.div key={label} initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} transition={{ delay: 0.1 + i*0.05 }}
             className={`glass-card p-4 border-l-4 ${cls}`}>
             <p className="text-secondary text-xs font-mono uppercase tracking-widest mb-1">{label}</p>
-            <p className={`font-display text-3xl font-bold ${textCls}`}>{parseFloat(val).toFixed(4)}</p>
-            <p className="text-secondary text-xs font-mono">SHM</p>
+            <div className="flex items-baseline gap-2">
+              <p className={`font-display text-2xl sm:text-3xl font-bold ${textCls}`}>{parseFloat(val).toFixed(2)}</p>
+              <p className="text-secondary text-[10px] font-mono">SHM</p>
+            </div>
           </motion.div>
         ))}
       </div>
@@ -245,7 +247,7 @@ export default function MarketDetail() {
       {!isResolved && (
         <div className="glass-card p-6 mb-6">
           <h2 className="font-display text-lg font-semibold text-white mb-4">Place Bet</h2>
-          <div className="grid grid-cols-2 gap-3 mb-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
             <motion.button whileTap={{ scale:0.97 }} onClick={() => setBetSide("yes")}
               className={`p-4 rounded-xl border-2 font-display font-semibold text-sm transition-all duration-200 ${
                 betSide === "yes" ? "border-yes bg-yes/5 text-yes" : "border-primary/20 glass-card text-secondary hover:border-yes/40"
