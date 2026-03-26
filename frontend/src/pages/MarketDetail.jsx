@@ -71,11 +71,18 @@ export default function MarketDetail() {
   useEffect(() => { loadMarket(); }, [loadMarket]);
 
   const fetchOnChain = useCallback(async () => {
-    if (!provider) return;
+    if (!provider || !id) return;
     try {
       const c = new Contract(CONTRACT_ADDRESS, CONTRACT_ABI, provider);
       const r = await c.getMarket(Number(id));
-      setOnChain({ yes: formatEther(r[1]), no: formatEther(r[2]), resolved: r[3], outcome: r[4] ?? false });
+      if (r && r.length >= 5) {
+        setOnChain({ 
+          yes: formatEther(r[1] || 0n), 
+          no: formatEther(r[2] || 0n), 
+          resolved: !!r[3], 
+          outcome: !!r[4] 
+        });
+      }
     } catch (err) { console.error("getMarket:", err.message); }
   }, [provider, id]);
 
@@ -152,7 +159,7 @@ export default function MarketDetail() {
   const isResolved = onChain.resolved;
   const busy = txStatus === "pending";
 
-  const _amt = parseFloat(amount);
+  const _amt = parseFloat(amount || "0");
   const _pool = betSide === "yes" ? yesF : noF;
   const potentialReturn = (amount && !isNaN(_amt) && _pool > 0)
     ? ((_amt * (yesF + noF)) / _pool).toFixed(4)
