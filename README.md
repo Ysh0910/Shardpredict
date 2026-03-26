@@ -75,6 +75,8 @@ cd blockchain-prediction-market
 │   │   └── index.css
 │   ├── index.html
 │   └── package.json
+├── Contracts/
+│   └── predictionmarket.sol   ← Smart contract source code
 └── README.md
 ```
 
@@ -100,22 +102,40 @@ If you want to deploy your own instance of the contract:
 1. Go to [Remix IDE](https://remix.ethereum.org/)
 2. Create a new file: `PredictionMarket.sol`
 
-#### Step 2: Contract Code
+#### Step 2: Copy Contract Code
 
-Copy the Solidity contract code into Remix. The contract includes:
-- `createMarket(string _question)` - Create a new prediction market
+The contract is located in `Contracts/predictionmarket.sol` in this repository. 
+
+**Option A - Use the repository file:**
+1. Open `Contracts/predictionmarket.sol` from this repository
+2. Copy the entire file content
+3. Paste it into your new Remix file
+
+**Option B - Copy directly from Remix:**
+If you prefer, you can also find the contract code in the repository and copy it manually.
+
+**Contract Features:**
+- `createMarket(string _question)` - Create a new prediction market (owner only)
 - `betYes(uint256 marketId)` - Bet on YES outcome (payable)
 - `betNo(uint256 marketId)` - Bet on NO outcome (payable)
 - `resolveMarket(uint256 marketId, bool _outcome)` - Resolve market (owner only)
 - `claim(uint256 marketId)` - Claim winnings after resolution
 - `getMarket(uint256 marketId)` - View market details
 
+**Security Features:**
+- ReentrancyGuard protection on claim function
+- Checks-Effects-Interactions (CEI) pattern
+- Market existence validation
+- Owner-only market creation and resolution
+- Prevents betting on resolved markets
+- Prevents double claiming
+
 #### Step 3: Compile
 
 1. Go to the "Solidity Compiler" tab (left sidebar)
-2. Select compiler version matching your contract (e.g., `0.8.x`)
+2. Select compiler version `0.8.0` or higher (the contract uses `^0.8.0`)
 3. Click "Compile PredictionMarket.sol"
-4. Ensure there are no errors
+4. Ensure there are no errors (warnings are okay)
 
 #### Step 4: Deploy
 
@@ -268,6 +288,118 @@ See [VERIFICATION_FEATURE.md](./VERIFICATION_FEATURE.md) for detailed documentat
 
 ---
 
+## Smart Contract Details
+
+### Contract Overview
+
+The `PredictionMarket.sol` contract is a secure, gas-optimized Solidity smart contract that manages prediction markets on the blockchain.
+
+**Location:** `Contracts/predictionmarket.sol`
+
+**Solidity Version:** `^0.8.0`
+
+### Contract Architecture
+
+```solidity
+contract PredictionMarket is ReentrancyGuard
+```
+
+The contract inherits from a custom `ReentrancyGuard` implementation to prevent reentrancy attacks.
+
+### Data Structures
+
+**Market Struct:**
+```solidity
+struct Market {
+    string question;      // The prediction question
+    uint256 yesPool;      // Total ETH bet on YES
+    uint256 noPool;       // Total ETH bet on NO
+    bool resolved;        // Whether market is resolved
+    bool outcome;         // Final outcome (true=YES, false=NO)
+    bool exists;          // Existence flag for validation
+}
+```
+
+**State Variables:**
+- `address public owner` - Contract deployer (only one who can create/resolve markets)
+- `uint256 public marketCount` - Total number of markets created
+- `mapping(uint256 => Market) public markets` - Market data by ID
+- `mapping(uint256 => mapping(address => uint256)) public yesBets` - User YES bets
+- `mapping(uint256 => mapping(address => uint256)) public noBets` - User NO bets
+- `mapping(uint256 => mapping(address => bool)) public claimed` - Claim tracking
+
+### Core Functions
+
+**1. createMarket(string _question)**
+- **Access:** Owner only
+- **Purpose:** Create a new prediction market
+- **Emits:** `MarketCreated(marketId, question)`
+
+**2. betYes(uint256 marketId) payable**
+- **Access:** Public
+- **Purpose:** Place a YES bet with ETH
+- **Requirements:** Market exists, not resolved, msg.value > 0
+- **Emits:** `BetPlaced(marketId, bettor, true, amount)`
+
+**3. betNo(uint256 marketId) payable**
+- **Access:** Public
+- **Purpose:** Place a NO bet with ETH
+- **Requirements:** Market exists, not resolved, msg.value > 0
+- **Emits:** `BetPlaced(marketId, bettor, false, amount)`
+
+**4. resolveMarket(uint256 marketId, bool _outcome)**
+- **Access:** Owner only
+- **Purpose:** Set the final outcome of a market
+- **Requirements:** Market exists, not already resolved
+- **Emits:** `MarketResolved(marketId, outcome)`
+
+**5. claim(uint256 marketId)**
+- **Access:** Public
+- **Purpose:** Claim winnings after market resolution
+- **Security:** Uses CEI pattern + ReentrancyGuard
+- **Formula:** `reward = (userBet * totalPool) / winningPool`
+- **Emits:** `Claimed(marketId, winner, reward)`
+
+**6. getMarket(uint256 marketId) view**
+- **Access:** Public
+- **Purpose:** Retrieve market details
+- **Returns:** `(question, yesPool, noPool, resolved, outcome)`
+
+### Security Features
+
+1. **ReentrancyGuard**: Custom implementation prevents reentrancy attacks on claim function
+2. **Checks-Effects-Interactions (CEI)**: All state changes happen before external calls
+3. **Market Existence Validation**: `marketExists` modifier prevents invalid market access
+4. **Owner Restrictions**: Only owner can create and resolve markets
+5. **Double Claim Prevention**: `claimed` mapping prevents users from claiming twice
+6. **Resolved Market Protection**: Cannot bet on already resolved markets
+
+### Events
+
+```solidity
+event MarketCreated(uint256 indexed marketId, string question);
+event BetPlaced(uint256 indexed marketId, address indexed bettor, bool side, uint256 amount);
+event MarketResolved(uint256 indexed marketId, bool outcome);
+event Claimed(uint256 indexed marketId, address indexed winner, uint256 reward);
+```
+
+### Reward Calculation
+
+Winners receive a proportional share of the total pool based on their contribution to the winning side:
+
+```
+reward = (userBet / winningPool) × totalPool
+```
+
+**Example:**
+- Total YES pool: 10 ETH
+- Total NO pool: 5 ETH
+- User bet on YES: 2 ETH
+- Outcome: YES wins
+- User reward: (2 / 10) × 15 = 3 ETH
+
+---
+
 ## Network Configuration
 
 ### Supported Networks
@@ -338,6 +470,9 @@ The application follows a three-tier architecture:
 - **Event-Driven**: Frontend listens to contract events for real-time updates
 - **Challenge Threshold**: Prevents spam while ensuring community oversight
 - **AI Integration**: Automated verification reduces manual moderation needs
+- **Owner-Controlled Markets**: Only contract owner can create/resolve markets to prevent spam
+- **Proportional Rewards**: Winners receive rewards proportional to their bet size
+- **Security-First Contract**: ReentrancyGuard + CEI pattern protect against common vulnerabilities
 
 ### Testing
 
@@ -393,8 +528,27 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [Ethers.js Documentation](https://docs.ethers.org/)
 - [MongoDB Documentation](https://docs.mongodb.com/)
 - [Google Gemini API](https://ai.google.dev/)
+- [Solidity Documentation](https://docs.soliditylang.org/)
 - [Verification Feature Guide](./VERIFICATION_FEATURE.md)
 - [Setup Guide](./SETUP_GUIDE.md)
+
+---
+
+## Quick Reference
+
+### Deployed Contract
+
+**Current Deployment:**
+- **Address:** `0x2945bB558465467613419DB908E1628Dd1A2c180`
+- **Network:** Check your MetaMask network
+- **Source Code:** `Contracts/predictionmarket.sol`
+
+### Important Notes
+
+- The contract owner (deployer address) is the only one who can create and resolve markets
+- Users can bet on any active market without restrictions
+- Rewards are calculated proportionally based on bet size
+- All financial transactions happen on-chain; MongoDB only stores metadata
 
 ---
 
