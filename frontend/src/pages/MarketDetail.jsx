@@ -235,10 +235,8 @@ export default function MarketDetail() {
           <span className="text-no">NO {100-yesPct}%</span>
         </div>
         <div className="h-6 rounded-full overflow-hidden flex bg-elevated">
-          <motion.div className="h-full bg-yes" style={{ boxShadow:"0 0 12px rgba(0,230,118,0.4)" }}
-            initial={{ width:0 }} animate={{ width:`${yesPct}%` }} transition={{ duration:0.8, ease:"easeOut" }} />
-          <motion.div className="h-full bg-no" style={{ boxShadow:"0 0 12px rgba(255,61,87,0.4)" }}
-            initial={{ width:0 }} animate={{ width:`${100-yesPct}%` }} transition={{ duration:0.8, ease:"easeOut" }} />
+          <div className="h-full bg-yes transition-all duration-700 ease-out" style={{ width: `${yesPct}%` }} />
+          <div className="h-full bg-no transition-all duration-700 ease-out" style={{ width: `${100-yesPct}%` }} />
         </div>
         <p className="text-yes text-xs font-mono mt-2">{yesPct}% chance this resolves YES</p>
       </div>
