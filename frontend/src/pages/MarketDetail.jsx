@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Contract, parseEther, formatEther } from "ethers";
 import { motion } from "framer-motion";
@@ -61,14 +61,14 @@ export default function MarketDetail() {
   const [challenging,  setChallenging]  = useState(false);
   const [challengeMsg, setChallengeMsg] = useState(null);
 
-  const loadMarket = () => {
+  const loadMarket = useCallback(() => {
     fetch(apiUrl("/markets")).then(r => r.json()).then(list => {
       const m = list.find(x => String(x.marketId) === String(id));
       if (m) { setMarket(m); setBackendProof(m.proof || null); }
     }).catch(() => {});
-  };
+  }, [id, apiUrl]);
 
-  useEffect(() => { loadMarket(); }, [id]);
+  useEffect(() => { loadMarket(); }, [loadMarket]);
 
   const fetchOnChain = useCallback(async () => {
     if (!provider) return;
@@ -121,7 +121,7 @@ export default function MarketDetail() {
     if (!account) return;
     setChallenging(true); setChallengeMsg(null);
     try {
-      const res = await fetch(`${API}/markets/challenge`, {
+      const res = await fetch(apiUrl("/markets/challenge"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ marketId: Number(id), wallet: account }),
@@ -166,7 +166,8 @@ export default function MarketDetail() {
 
   const cat  = market.category || "Custom";
   const grad = CATEGORY_GRADIENTS[cat] || CATEGORY_GRADIENTS.Custom;
-  const short = `${market.creator.slice(0,6)}...${market.creator.slice(-4)}`;
+  const creatorAddr = market.creator || "0x0000000000000000000000000000000000000000";
+  const short = `${creatorAddr.slice(0,6)}...${creatorAddr.slice(-4)}`;
   const alreadyChallenged = market?.challenges?.some(c => c.wallet?.toLowerCase() === account?.toLowerCase());
   const challengeCount = market?.challenges?.length || 0;
 
