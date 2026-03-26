@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Contract, parseEther, formatEther } from "ethers";
 import { motion } from "framer-motion";
@@ -150,20 +150,26 @@ export default function MarketDetail() {
   }
 
   // All hooks must be before any early return
-  const yesF = parseFloat(onChain.yes);
-  const noF  = parseFloat(onChain.no);
-  const total = (yesF + noF).toFixed(4);
-  const oddsYes = yesF > 0 ? ((yesF + noF) / yesF).toFixed(2) : null;
-  const oddsNo  = noF  > 0 ? ((yesF + noF) / noF).toFixed(2)  : null;
-  const yesPct  = (yesF + noF) > 0 ? Math.round((yesF / (yesF + noF)) * 100) : 50;
+  const { yesF, noF, total, oddsYes, oddsNo, yesPct } = useMemo(() => {
+    const y = parseFloat(onChain.yes || "0");
+    const n = parseFloat(onChain.no || "0");
+    const t = (y + n).toFixed(4);
+    const oy = y > 0 ? ((y + n) / y).toFixed(2) : null;
+    const on = n > 0 ? ((y + n) / n).toFixed(2) : null;
+    const p = (y + n) > 0 ? Math.round((y / (y + n)) * 100) : 50;
+    return { yesF: y, noF: n, total: t, oddsYes: oy, oddsNo: on, yesPct: p };
+  }, [onChain.yes, onChain.no]);
+
   const isResolved = onChain.resolved;
   const busy = txStatus === "pending";
 
-  const _amt = parseFloat(amount || "0");
-  const _pool = betSide === "yes" ? yesF : noF;
-  const potentialReturn = (amount && !isNaN(_amt) && _pool > 0)
-    ? ((_amt * (yesF + noF)) / _pool).toFixed(4)
-    : null;
+  const potentialReturn = useMemo(() => {
+    const amt = parseFloat(amount || "0");
+    const pool = betSide === "yes" ? yesF : noF;
+    return (amount && !isNaN(amt) && pool > 0)
+      ? ((amt * (yesF + noF)) / pool).toFixed(4)
+      : null;
+  }, [amount, betSide, yesF, noF]);
 
   if (!market) return (
     <div className="flex justify-center items-center h-[60vh]">
